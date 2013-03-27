@@ -16,200 +16,83 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.os.SystemClock;
+import android.util.Log;
 import com.erik.and.caleb.tarddroidball.learnopengles.RawResourceReader;
 import com.erik.and.caleb.tarddroidball.learnopengles.ShaderHelper;
 import com.erik.and.caleb.tarddroidball.learnopengles.TextureHelper;
 
-/**
- * This class implements our custom renderer. Note that the GL10 parameter passed in is unused for OpenGL ES 2.0
- * renderers -- the static class GLES20 is used instead.
- */
 public class GraphicsRenderer implements GLSurfaceView.Renderer {
 
   public volatile CopyOnWriteArrayList<Finger> mFingers;
+  private ArrayList<CoolMatrix> mObjectMatrices;
 
-  /**
-   * Used for debug logs.
-   */
   private static final String TAG = "GraphicsRenderer";
 
   private final Context mActivityContext;
 
-  /**
-   * Store the model matrix. This matrix is used to move models from object space (where each model can be thought
-   * of being located at the center of the universe) to world space.
-   */
   private float[] mModelMatrix = new float[16];
-
-  /**
-   * Store the view matrix. This can be thought of as our camera. This matrix transforms world space to eye space;
-   * it positions things relative to our eye.
-   */
-  private float[] mViewMatrix = new float[16];
-
-  /**
-   * Store the projection matrix. This is used to project the scene onto a 2D viewport.
-   */
   private float[] mProjectionMatrix = new float[16];
-
-  /**
-   * Allocate storage for the final combined matrix. This will be passed into the shader program.
-   */
+  private float[] mViewMatrix = new float[16];
   private float[] mMVPMatrix = new float[16];
-
-  /**
-   * Stores a copy of the model matrix specifically for the light position.
-   */
   private float[] mLightModelMatrix = new float[16];
 
-  /**
-   * Store our model data in a float buffer.
-   */
   private final FloatBuffer mCubePositions;
   private final FloatBuffer mCubeColors;
   private final FloatBuffer mCubeNormals;
   private final FloatBuffer mCubeTextureCoordinates;
-
-  /**
-   * Store our model data in a float buffer.
-   */
-  // color and normal data is similar to cube, so we'll skip generating it
   private final FloatBuffer mTardisPositions;
   private final FloatBuffer mTardisTextureCoordinates;
 
-  /**
-   * This will be used to pass in the transformation matrix.
-   */
   private int mMVPMatrixHandle;
-
-  /**
-   * This will be used to pass in the modelview matrix.
-   */
   private int mMVMatrixHandle;
-
-  /**
-   * This will be used to pass in the light position.
-   */
   private int mLightPosHandle;
-
-  /**
-   * This will be used to pass in the texture.
-   */
   private int mTextureUniformHandle;
-
-  /**
-   * This will be used to pass in model position information.
-   */
   private int mPositionHandle;
-
-  /**
-   * This will be used to pass in model color information.
-   */
   private int mColorHandle;
-
-  /**
-   * This will be used to pass in model normal information.
-   */
   private int mNormalHandle;
-
-  /**
-   * This will be used to pass in model texture coordinate information.
-   */
   private int mTextureCoordinateHandle;
 
-  /**
-   * How many bytes per float.
-   */
   private final int mBytesPerFloat = 4;
-
-  /**
-   * Size of the position data in elements.
-   */
   private final int mPositionDataSize = 3;
-
-  /**
-   * Size of the color data in elements.
-   */
   private final int mColorDataSize = 4;
-
-  /**
-   * Size of the normal data in elements.
-   */
   private final int mNormalDataSize = 3;
-
-  /**
-   * Size of the texture coordinate data in elements.
-   */
   private final int mTextureCoordinateDataSize = 2;
 
-  /**
-   * Used to hold a light centered on the origin in model space. We need a 4th coordinate so we can get translations to work when
-   * we multiply this by our transformation matrices.
-   */
   private final float[] mLightPosInModelSpace = new float[]{0.0f, 0.0f, 0.0f, 1.0f};
-
-  /**
-   * Used to hold the current position of the light in world space (after transformation via model matrix).
-   */
   private final float[] mLightPosInWorldSpace = new float[4];
-
-  /**
-   * Used to hold the transformed position of the light in eye space (after transformation via modelview matrix)
-   */
   private final float[] mLightPosInEyeSpace = new float[4];
 
-  /**
-   * This is a handle to our cube shading program.
-   */
   private int mProgramHandle;
-
-  /**
-   * This is a handle to our light point program.
-   */
   private int mPointProgramHandle;
-
-  /**
-   * This is a handle to our texture data.
-   */
   private int mGrassSideTextureDataHandle;
   private int mGrassTopTextureDataHandle;
   private int mTardisSideTextureHandle;
 
-  /**
-   * Initialize the model data.
-   */
   public GraphicsRenderer(final Context context) {
     mActivityContext = context;
 
-    // Initialize the buffers.
     float[] cubePositionData = getCubePositionData();
-    mCubePositions = ByteBuffer.allocateDirect(cubePositionData.length * mBytesPerFloat)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer();
+    mCubePositions = ByteBuffer.allocateDirect(cubePositionData.length * mBytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
     mCubePositions.put(cubePositionData).position(0);
 
     float[] cubeColorData = getCubeColorData();
-    mCubeColors = ByteBuffer.allocateDirect(cubeColorData.length * mBytesPerFloat)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer();
+    mCubeColors = ByteBuffer.allocateDirect(cubeColorData.length * mBytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
     mCubeColors.put(cubeColorData).position(0);
 
     float[] cubeNormalData = getCubeNormalData();
-    mCubeNormals = ByteBuffer.allocateDirect(cubeNormalData.length * mBytesPerFloat)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer();
+    mCubeNormals = ByteBuffer.allocateDirect(cubeNormalData.length * mBytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
     mCubeNormals.put(cubeNormalData).position(0);
 
     float[] cubeTextureCoordinateData = getCubeTextureCoordinateData();
-    mCubeTextureCoordinates = ByteBuffer.allocateDirect(cubeTextureCoordinateData.length * mBytesPerFloat)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer();
+    mCubeTextureCoordinates = ByteBuffer.allocateDirect(cubeTextureCoordinateData.length * mBytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
     mCubeTextureCoordinates.put(cubeTextureCoordinateData).position(0);
 
     float[] tardisPositionData = getTardisPositionData();
-    mTardisPositions = ByteBuffer.allocateDirect(tardisPositionData.length * mBytesPerFloat)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer();
+    mTardisPositions = ByteBuffer.allocateDirect(tardisPositionData.length * mBytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
     mTardisPositions.put(tardisPositionData).position(0);
 
     float[] tardisTextureCoordinateData = getTardisTextureCoordinateData();
-    mTardisTextureCoordinates = ByteBuffer.allocateDirect(tardisTextureCoordinateData.length * mBytesPerFloat)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer();
+    mTardisTextureCoordinates = ByteBuffer.allocateDirect(tardisTextureCoordinateData.length * mBytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
     mTardisTextureCoordinates.put(tardisTextureCoordinateData).position(0);
   }
 
@@ -225,38 +108,24 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
   @Override
   public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
     mFingers = new CopyOnWriteArrayList<Finger>();
+    mObjectMatrices = new ArrayList<CoolMatrix>();
 
-    // Set the background clear color to black.
-    GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-    // Use culling to remove back faces.
+    GLES20.glClearColor(0.5f, 0.5f, 0.5f, 0.0f);
     GLES20.glEnable(GLES20.GL_CULL_FACE);
-
-    // Enable depth testing
     GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
-    // The below glEnable() call is a holdover from OpenGL ES 1, and is not needed in OpenGL ES 2.
-    // Enable texture mapping
-    // GLES20.glEnable(GLES20.GL_TEXTURE_2D);
-
-    // Position the eye in front of the origin.
     final float eyeX = 0.0f;
     final float eyeY = 0.0f;
     final float eyeZ = 2.0f;
 
-    // We are looking toward the distance
     final float lookX = 0.0f;
     final float lookY = 0.0f;
     final float lookZ = -5.0f;
 
-    // Set our up vector. This is where our head would be pointing were we holding the camera.
     final float upX = 0.0f;
     final float upY = 1.0f;
     final float upZ = 0.0f;
 
-    // Set the view matrix. This matrix can be said to represent the camera position.
-    // NOTE: In OpenGL 1, a ModelView matrix is used, which is a combination of a model and
-    // view matrix. In OpenGL 2, we can keep track of these matrices separately if we choose.
     Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, lookX, lookY, lookZ, upX, upY, upZ);
 
     final String vertexShader = getVertexShader();
@@ -265,25 +134,18 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
     final int vertexShaderHandle = ShaderHelper.compileShader(GLES20.GL_VERTEX_SHADER, vertexShader);
     final int fragmentShaderHandle = ShaderHelper.compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader);
 
-    mProgramHandle = ShaderHelper.createAndLinkProgram(vertexShaderHandle, fragmentShaderHandle,
-        new String[]{"a_Position", "a_Color", "a_Normal", "a_TexCoordinate"});
+    mProgramHandle = ShaderHelper.createAndLinkProgram(vertexShaderHandle, fragmentShaderHandle, new String[]{"a_Position", "a_Color", "a_Normal", "a_TexCoordinate"});
 
-    // Define a simple shader program for our point.
     final String pointVertexShader = RawResourceReader.readTextFileFromRawResource(mActivityContext, R.raw.point_vertex_shader);
     final String pointFragmentShader = RawResourceReader.readTextFileFromRawResource(mActivityContext, R.raw.point_fragment_shader);
 
     final int pointVertexShaderHandle = ShaderHelper.compileShader(GLES20.GL_VERTEX_SHADER, pointVertexShader);
     final int pointFragmentShaderHandle = ShaderHelper.compileShader(GLES20.GL_FRAGMENT_SHADER, pointFragmentShader);
-    mPointProgramHandle = ShaderHelper.createAndLinkProgram(pointVertexShaderHandle, pointFragmentShaderHandle,
-        new String[]{"a_Position"});
+    mPointProgramHandle = ShaderHelper.createAndLinkProgram(pointVertexShaderHandle, pointFragmentShaderHandle, new String[]{"a_Position"});
 
-    // Load the grass side texture
+    // Load in all of our png textures
     mGrassSideTextureDataHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.grass_side);
-
-    // Load the grass top texture
     mGrassTopTextureDataHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.grass_top);
-
-    // Load the tardis' side texture
     mTardisSideTextureHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.tard_tex);
   }
 
@@ -308,7 +170,6 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
   float TARDIS_HEIGHT_MAX = 10;
   float TARDIS_HEIGHT_MIN = -0.75f;
   float redTardisY = TARDIS_HEIGHT_MIN;
-  float redTardisX = 10.0f;
   float redTardisDirection = 1;
   float redTardisSpeed = 0.1f;
 
@@ -317,13 +178,17 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
   float greenTardisRotateX;
   float greenTardisRotateY;
 
+  float mLastAngle;
+
   @Override
   public void onDrawFrame(GL10 glUnused) {
     GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 
     // Do a complete rotation every 10 seconds.
     long time = SystemClock.uptimeMillis() % 10000L;
-    float angleInDegrees = (360.0f / 10000.0f) * ((int) time);
+    float thisAngle = (360.0f / 10000.0f) * ((int) time);
+    float angleInDegrees = thisAngle - mLastAngle;
+    mLastAngle = thisAngle;
 
     if (redTardisY >= TARDIS_HEIGHT_MAX)
       redTardisDirection = -1;
@@ -331,22 +196,27 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
       redTardisDirection = 1;
     redTardisY += redTardisSpeed * redTardisDirection;
 
-    synchronized(mFingers) {
+    synchronized (mFingers) {
       Iterator it = mFingers.iterator();
-      if (it.hasNext()) {
+      if (it.hasNext() && mObjectMatrices.size() >= 5) {
         Finger finger = (Finger) it.next();
+        greenTardisRotateX = 0;
+        greenTardisRotateY = 0;
+        greenTardisX = 0;
+        greenTardisY = 0;
         if (finger.homeTardis) {
           greenTardisX = 5.0f;
           greenTardisY = TARDIS_HEIGHT_MIN;
-          greenTardisRotateX = 0;
-          greenTardisRotateY = 0;
+          Matrix.setIdentityM(mObjectMatrices.get(4).getMatrix(), 0);
+          Matrix.translateM(mObjectMatrices.get(4).getMatrix(), 0, greenTardisX, greenTardisY, -7.0f);
+          Matrix.rotateM(mObjectMatrices.get(4).getMatrix(), 0, -greenTardisRotateY, 1.0f, 0.0f, 0.0f);
+          Matrix.rotateM(mObjectMatrices.get(4).getMatrix(), 0, greenTardisRotateX, 0.0f, 1.0f, 0.0f);
           mFingers.remove(finger);
         } else if (finger.translate) {
-          greenTardisX += finger.dx;
-          greenTardisY += finger.dy;
-        } else  if (finger.rotate) {
-          greenTardisRotateX += finger.rotationAngleX;
-          greenTardisRotateY += finger.rotationAngleY;
+          Matrix.translateM(mObjectMatrices.get(4).getMatrix(), 0, finger.dx, finger.dy, 0.0f);
+        } else if (finger.rotate) {
+          Matrix.rotateM(mObjectMatrices.get(4).getMatrix(), 0, -finger.rotationAngleX, 0.0f, 1.0f, 0.0f);
+          Matrix.rotateM(mObjectMatrices.get(4).getMatrix(), 0, -finger.rotationAngleY, 1.0f, 0.0f, 0.0f);
         }
       }
     }
@@ -360,36 +230,75 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
     // Make side of the grass
     setupCubeWithTexture(mGrassSideTextureDataHandle);
     setupCubeLightingWithAngle(angleInDegrees);
-    Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, 0.0f, -4.0f, -7.0f);
-    drawCube();
+    if (mObjectMatrices.size() < 1) {
+      Matrix.setIdentityM(mModelMatrix, 0);
+      Matrix.translateM(mModelMatrix, 0, 0.0f, -4.0f, -7.0f);
+      try {
+        mObjectMatrices.add(new CoolMatrix(mModelMatrix));
+      } catch (CoolMatrix.ThisIsNotAMatrixException tiname) {
+        tiname.printStackTrace();
+      }
+    }
+    drawCube(mObjectMatrices.get(0).getMatrix());
 
     // Make the top of the grass
     setupCubeWithTexture(mGrassTopTextureDataHandle);
-    Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, 0.0f, -3.99f, -7.0f);
-    Matrix.scaleM(mModelMatrix, 0, 1.0f, 1.01f, 1.0f);
-    drawCube();
+    setupCubeLightingWithAngle(angleInDegrees);
+    if (mObjectMatrices.size() < 2) {
+      Matrix.setIdentityM(mModelMatrix, 0);
+      Matrix.translateM(mModelMatrix, 0, 0.0f, -3.99f, -7.0f);
+      Matrix.scaleM(mModelMatrix, 0, 1.0f, 1.01f, 1.0f);
+      try {
+        mObjectMatrices.add(new CoolMatrix(mModelMatrix));
+      } catch (CoolMatrix.ThisIsNotAMatrixException tiname) {
+        tiname.printStackTrace();
+      }
+    }
+    drawCube(mObjectMatrices.get(1).getMatrix());
 
     // Make a tardis
     setupCubeWithTexture(mTardisSideTextureHandle);
-    Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, 0.0f, 1.0f, -7.0f);
-    Matrix.rotateM(mModelMatrix, 0, -angleInDegrees, 0.0f, 1.0f, 0.0f);
-    drawTardis();
+    if (mObjectMatrices.size() < 3) {
+      Matrix.setIdentityM(mModelMatrix, 0);
+      Matrix.translateM(mModelMatrix, 0, 0.0f, 1.0f, -7.0f);
+      Matrix.rotateM(mModelMatrix, 0, -angleInDegrees, 0.0f, 1.0f, 0.0f);
+      try {
+        mObjectMatrices.add(new CoolMatrix(mModelMatrix));
+      } catch (CoolMatrix.ThisIsNotAMatrixException tiname) {
+        tiname.printStackTrace();
+      }
+    }
+    Matrix.rotateM(mObjectMatrices.get(2).getMatrix(), 0, -angleInDegrees, 0.0f, 1.0f, 0.0f);
+    drawTardis(mObjectMatrices.get(2).getMatrix());
 
     // Make 2nd tardis
-    Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, -5.0f, redTardisY, -7.0f);
-    Matrix.rotateM(mModelMatrix, 0, angleInDegrees * 2, 0.0f, 1.0f, 0.0f);
-    drawTardis();
+    if (mObjectMatrices.size() < 4) {
+      Matrix.setIdentityM(mModelMatrix, 0);
+      Matrix.translateM(mModelMatrix, 0, -5.0f, redTardisY, -7.0f);
+      Matrix.rotateM(mModelMatrix, 0, angleInDegrees * 2, 0.0f, 1.0f, 0.0f);
+      try {
+        mObjectMatrices.add(new CoolMatrix(mModelMatrix));
+      } catch (CoolMatrix.ThisIsNotAMatrixException tiname) {
+        tiname.printStackTrace();
+      }
+    }
+    Matrix.translateM(mObjectMatrices.get(3).getMatrix(), 0, 0.0f, redTardisSpeed * redTardisDirection, 0.0f);
+    Matrix.rotateM(mObjectMatrices.get(3).getMatrix(), 0, -angleInDegrees, 0.0f, 1.0f, 0.0f);
+    drawTardis(mObjectMatrices.get(3).getMatrix());
 
     // Make 3rd tardis
-    Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, greenTardisX, greenTardisY, -7.0f);
-    Matrix.rotateM(mModelMatrix, 0, greenTardisRotateX, 1.0f, 0.0f, 0.0f);
-    Matrix.rotateM(mModelMatrix, 0, greenTardisRotateY, 0.0f, 1.0f, 0.0f);
-    drawTardis();
+    if (mObjectMatrices.size() < 5) {
+      Matrix.setIdentityM(mModelMatrix, 0);
+      Matrix.translateM(mModelMatrix, 0, greenTardisX, greenTardisY, -7.0f);
+      Matrix.rotateM(mModelMatrix, 0, -greenTardisRotateY, 1.0f, 0.0f, 0.0f);
+      Matrix.rotateM(mModelMatrix, 0, greenTardisRotateX, 0.0f, 1.0f, 0.0f);
+      try {
+        mObjectMatrices.add(new CoolMatrix(mModelMatrix));
+      } catch (CoolMatrix.ThisIsNotAMatrixException tiname) {
+        tiname.printStackTrace();
+      }
+    }
+    drawTardis(mObjectMatrices.get(4).getMatrix());
 
     // Draw a point to indicate the light.
     GLES20.glUseProgram(mPointProgramHandle);
@@ -434,7 +343,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
   /**
    * Draws a cube.
    */
-  private void drawCube() {
+  private void drawCube(float[] modelMatrix) {
     // Pass in the position information
     mCubePositions.position(0);
     GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize, GLES20.GL_FLOAT, false,
@@ -465,7 +374,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
 
     // This multiplies the view matrix by the model matrix, and stores the result in the MVP matrix
     // (which currently contains model * view).
-    Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+    Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, modelMatrix, 0);
 
     // Pass in the modelview matrix.
     GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);
@@ -484,7 +393,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
     GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6 * 6);
   }
 
-  private void drawTardis() {
+  private void drawTardis(float[] modelMatrix) {
     // Pass in the position information
     mTardisPositions.position(0);
     GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize, GLES20.GL_FLOAT, false,
@@ -515,7 +424,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer {
 
     // This multiplies the view matrix by the model matrix, and stores the result in the MVP matrix
     // (which currently contains model * view).
-    Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+    Matrix.multiplyMM(mMVPMatrix, 0, mViewMatrix, 0, modelMatrix, 0);
 
     // Pass in the modelview matrix.
     GLES20.glUniformMatrix4fv(mMVMatrixHandle, 1, false, mMVPMatrix, 0);

@@ -104,13 +104,13 @@ public class GraphicsActivity extends Activity {
             mPreviousX = fx;
             mPreviousY = fy;
             mRenderer.mFingers.add(new Finger(fx, dx * 0.01f, fy, dy * 0.01f));
-            Log.d("Graphics", String.format("DX: %f DY: %f", dx, dy));
+//            Log.d("Graphics", String.format("DX: %f DY: %f", dx, dy));
           }
         } else if (e.getPointerCount() == 2) {
           e.getPointerCoords(0, finger);
 
           float dx = finger.x - mPreviousX;
-          float dy = mPreviousX - finger.x;
+          float dy = -(finger.y - mPreviousY);
           mPreviousX = finger.x;
           mPreviousY = finger.y;
 
