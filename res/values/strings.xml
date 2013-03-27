@@ -1,13 +1,14 @@
 <resources>
-  <string name="app_name">TardDroidBall</string>
-  <string name="hello">Hello World, GraphicsActivity!</string>
-  <string name="movetex">Texture</string>
-  <string name="movetri">Move Triangle</string>
-  <string name="lighting">Lighting</string>
-  <string name="sensor">Accel.</string>
-  <string name="movelight">Light</string>
-  <string name="moveball">Sphere</string>
-  <string name="moveeye">Viewer</string>
-  <string name="movecoa">LookAt</string>
-  <string name="dance">Dance</string>
+    <string name="app_name">TardDroidBall</string>
+    <string name="hello">Hello World, GraphicsActivity!</string>
+    <string name="movetex">Texture</string>
+    <string name="movetri">Move Triangle</string>
+    <string name="lighting">Lighting</string>
+    <string name="sensor">Accel.</string>
+    <string name="movelight">Light</string>
+    <string name="moveball">Sphere</string>
+    <string name="moveeye">Viewer</string>
+    <string name="movecoa">LookAt</string>
+    <string name="dance">Dance</string>
+    <string name="home_tardis">Home Tardis</string>
 </resources>

@@ -3,7 +3,10 @@ package com.erik.and.caleb.tarddroidball;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -21,9 +24,13 @@ import com.erik.and.caleb.tarddroidball.learnopengles.TextureHelper;
  * This class implements our custom renderer. Note that the GL10 parameter passed in is unused for OpenGL ES 2.0
  * renderers -- the static class GLES20 is used instead.
  */
-public class GraphicsRenderer implements GLSurfaceView.Renderer
-{
-  /** Used for debug logs. */
+public class GraphicsRenderer implements GLSurfaceView.Renderer {
+
+  public volatile CopyOnWriteArrayList<Finger> mFingers;
+
+  /**
+   * Used for debug logs.
+   */
   private static final String TAG = "GraphicsRenderer";
 
   private final Context mActivityContext;
@@ -40,10 +47,14 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
    */
   private float[] mViewMatrix = new float[16];
 
-  /** Store the projection matrix. This is used to project the scene onto a 2D viewport. */
+  /**
+   * Store the projection matrix. This is used to project the scene onto a 2D viewport.
+   */
   private float[] mProjectionMatrix = new float[16];
 
-  /** Allocate storage for the final combined matrix. This will be passed into the shader program. */
+  /**
+   * Allocate storage for the final combined matrix. This will be passed into the shader program.
+   */
   private float[] mMVPMatrix = new float[16];
 
   /**
@@ -51,76 +62,115 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
    */
   private float[] mLightModelMatrix = new float[16];
 
-  /** Store our model data in a float buffer. */
+  /**
+   * Store our model data in a float buffer.
+   */
   private final FloatBuffer mCubePositions;
   private final FloatBuffer mCubeColors;
   private final FloatBuffer mCubeNormals;
   private final FloatBuffer mCubeTextureCoordinates;
 
-  /** Store our model data in a float buffer. */
+  /**
+   * Store our model data in a float buffer.
+   */
   // color and normal data is similar to cube, so we'll skip generating it
   private final FloatBuffer mTardisPositions;
   private final FloatBuffer mTardisTextureCoordinates;
 
-  /** Pokeball Parts */
-  //POKEBALL PARTS TODO
-
-  /** This will be used to pass in the transformation matrix. */
+  /**
+   * This will be used to pass in the transformation matrix.
+   */
   private int mMVPMatrixHandle;
 
-  /** This will be used to pass in the modelview matrix. */
+  /**
+   * This will be used to pass in the modelview matrix.
+   */
   private int mMVMatrixHandle;
 
-  /** This will be used to pass in the light position. */
+  /**
+   * This will be used to pass in the light position.
+   */
   private int mLightPosHandle;
 
-  /** This will be used to pass in the texture. */
+  /**
+   * This will be used to pass in the texture.
+   */
   private int mTextureUniformHandle;
 
-  /** This will be used to pass in model position information. */
+  /**
+   * This will be used to pass in model position information.
+   */
   private int mPositionHandle;
 
-  /** This will be used to pass in model color information. */
+  /**
+   * This will be used to pass in model color information.
+   */
   private int mColorHandle;
 
-  /** This will be used to pass in model normal information. */
+  /**
+   * This will be used to pass in model normal information.
+   */
   private int mNormalHandle;
 
-  /** This will be used to pass in model texture coordinate information. */
+  /**
+   * This will be used to pass in model texture coordinate information.
+   */
   private int mTextureCoordinateHandle;
 
-  /** How many bytes per float. */
+  /**
+   * How many bytes per float.
+   */
   private final int mBytesPerFloat = 4;
 
-  /** Size of the position data in elements. */
+  /**
+   * Size of the position data in elements.
+   */
   private final int mPositionDataSize = 3;
 
-  /** Size of the color data in elements. */
+  /**
+   * Size of the color data in elements.
+   */
   private final int mColorDataSize = 4;
 
-  /** Size of the normal data in elements. */
+  /**
+   * Size of the normal data in elements.
+   */
   private final int mNormalDataSize = 3;
 
-  /** Size of the texture coordinate data in elements. */
+  /**
+   * Size of the texture coordinate data in elements.
+   */
   private final int mTextureCoordinateDataSize = 2;
 
-  /** Used to hold a light centered on the origin in model space. We need a 4th coordinate so we can get translations to work when
-   *  we multiply this by our transformation matrices. */
-  private final float[] mLightPosInModelSpace = new float[] {0.0f, 0.0f, 0.0f, 1.0f};
+  /**
+   * Used to hold a light centered on the origin in model space. We need a 4th coordinate so we can get translations to work when
+   * we multiply this by our transformation matrices.
+   */
+  private final float[] mLightPosInModelSpace = new float[]{0.0f, 0.0f, 0.0f, 1.0f};
 
-  /** Used to hold the current position of the light in world space (after transformation via model matrix). */
+  /**
+   * Used to hold the current position of the light in world space (after transformation via model matrix).
+   */
   private final float[] mLightPosInWorldSpace = new float[4];
 
-  /** Used to hold the transformed position of the light in eye space (after transformation via modelview matrix) */
+  /**
+   * Used to hold the transformed position of the light in eye space (after transformation via modelview matrix)
+   */
   private final float[] mLightPosInEyeSpace = new float[4];
 
-  /** This is a handle to our cube shading program. */
+  /**
+   * This is a handle to our cube shading program.
+   */
   private int mProgramHandle;
 
-  /** This is a handle to our light point program. */
+  /**
+   * This is a handle to our light point program.
+   */
   private int mPointProgramHandle;
 
-  /** This is a handle to our texture data. */
+  /**
+   * This is a handle to our texture data.
+   */
   private int mGrassSideTextureDataHandle;
   private int mGrassTopTextureDataHandle;
   private int mTardisSideTextureHandle;
@@ -164,20 +214,18 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
   }
 
 
-
-  protected String getVertexShader()
-  {
+  protected String getVertexShader() {
     return RawResourceReader.readTextFileFromRawResource(mActivityContext, R.raw.per_pixel_vertex_shader);
   }
 
-  protected String getFragmentShader()
-  {
+  protected String getFragmentShader() {
     return RawResourceReader.readTextFileFromRawResource(mActivityContext, R.raw.per_pixel_fragment_shader);
   }
 
   @Override
-  public void onSurfaceCreated(GL10 glUnused, EGLConfig config)
-  {
+  public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
+    mFingers = new CopyOnWriteArrayList<Finger>();
+
     // Set the background clear color to black.
     GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -218,7 +266,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     final int fragmentShaderHandle = ShaderHelper.compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader);
 
     mProgramHandle = ShaderHelper.createAndLinkProgram(vertexShaderHandle, fragmentShaderHandle,
-        new String[] {"a_Position",  "a_Color", "a_Normal", "a_TexCoordinate"});
+        new String[]{"a_Position", "a_Color", "a_Normal", "a_TexCoordinate"});
 
     // Define a simple shader program for our point.
     final String pointVertexShader = RawResourceReader.readTextFileFromRawResource(mActivityContext, R.raw.point_vertex_shader);
@@ -227,7 +275,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     final int pointVertexShaderHandle = ShaderHelper.compileShader(GLES20.GL_VERTEX_SHADER, pointVertexShader);
     final int pointFragmentShaderHandle = ShaderHelper.compileShader(GLES20.GL_FRAGMENT_SHADER, pointFragmentShader);
     mPointProgramHandle = ShaderHelper.createAndLinkProgram(pointVertexShaderHandle, pointFragmentShaderHandle,
-        new String[] {"a_Position"});
+        new String[]{"a_Position"});
 
     // Load the grass side texture
     mGrassSideTextureDataHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.grass_side);
@@ -236,12 +284,11 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     mGrassTopTextureDataHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.grass_top);
 
     // Load the tardis' side texture
-    mTardisSideTextureHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.tardis_side_crop);
+    mTardisSideTextureHandle = TextureHelper.loadTexture(mActivityContext, R.drawable.tard_tex);
   }
 
   @Override
-  public void onSurfaceChanged(GL10 glUnused, int width, int height)
-  {
+  public void onSurfaceChanged(GL10 glUnused, int width, int height) {
     // Set the OpenGL viewport to the same size as the surface.
     GLES20.glViewport(0, 0, width, height);
 
@@ -258,26 +305,57 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);
   }
 
-  @Override
-  public void onDrawFrame(GL10 glUnused)
-  {
-    GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+  float TARDIS_HEIGHT_MAX = 10;
+  float TARDIS_HEIGHT_MIN = -0.75f;
+  float redTardisY = TARDIS_HEIGHT_MIN;
+  float redTardisX = 10.0f;
+  float redTardisDirection = 1;
+  float redTardisSpeed = 0.1f;
 
-    // Make a pokeball
-    Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, 0.0f, 0, -7.0f);
-    Matrix.scaleM(mModelMatrix, 0, 5.0f, 5.0f, 5.0f);
-    //POKEBALLDRAWING TODO
+  float greenTardisY = TARDIS_HEIGHT_MIN;
+  float greenTardisX = 5.0f;
+  float greenTardisRotateX;
+  float greenTardisRotateY;
+
+  @Override
+  public void onDrawFrame(GL10 glUnused) {
+    GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 
     // Do a complete rotation every 10 seconds.
     long time = SystemClock.uptimeMillis() % 10000L;
     float angleInDegrees = (360.0f / 10000.0f) * ((int) time);
 
+    if (redTardisY >= TARDIS_HEIGHT_MAX)
+      redTardisDirection = -1;
+    else if (redTardisY <= TARDIS_HEIGHT_MIN)
+      redTardisDirection = 1;
+    redTardisY += redTardisSpeed * redTardisDirection;
+
+    synchronized(mFingers) {
+      Iterator it = mFingers.iterator();
+      if (it.hasNext()) {
+        Finger finger = (Finger) it.next();
+        if (finger.homeTardis) {
+          greenTardisX = 5.0f;
+          greenTardisY = TARDIS_HEIGHT_MIN;
+          greenTardisRotateX = 0;
+          greenTardisRotateY = 0;
+          mFingers.remove(finger);
+        } else if (finger.translate) {
+          greenTardisX += finger.dx;
+          greenTardisY += finger.dy;
+        } else  if (finger.rotate) {
+          greenTardisRotateX += finger.rotationAngleX;
+          greenTardisRotateY += finger.rotationAngleY;
+        }
+      }
+    }
+
     // Set our per-vertex lighting program.
     GLES20.glUseProgram(mProgramHandle);
 
     // Set program handles for cube drawing and set the active texture unit to texture unit 0.
-    startDrawingCubes();
+    setupDrawingHandles();
 
     // Make side of the grass
     setupCubeWithTexture(mGrassSideTextureDataHandle);
@@ -297,19 +375,20 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     setupCubeWithTexture(mTardisSideTextureHandle);
     Matrix.setIdentityM(mModelMatrix, 0);
     Matrix.translateM(mModelMatrix, 0, 0.0f, 1.0f, -7.0f);
-    Matrix.rotateM(mModelMatrix, 0, angleInDegrees, 0.0f, 1.0f, 0.0f);
+    Matrix.rotateM(mModelMatrix, 0, -angleInDegrees, 0.0f, 1.0f, 0.0f);
     drawTardis();
 
     // Make 2nd tardis
     Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, -5.0f, 1.0f, -7.0f);
-    Matrix.rotateM(mModelMatrix, 0, angleInDegrees, 0.0f, 1.0f, 0.0f);
+    Matrix.translateM(mModelMatrix, 0, -5.0f, redTardisY, -7.0f);
+    Matrix.rotateM(mModelMatrix, 0, angleInDegrees * 2, 0.0f, 1.0f, 0.0f);
     drawTardis();
 
     // Make 3rd tardis
     Matrix.setIdentityM(mModelMatrix, 0);
-    Matrix.translateM(mModelMatrix, 0, 5.0f, 1.0f, -7.0f);
-    Matrix.rotateM(mModelMatrix, 0, angleInDegrees, 0.0f, 1.0f, 0.0f);
+    Matrix.translateM(mModelMatrix, 0, greenTardisX, greenTardisY, -7.0f);
+    Matrix.rotateM(mModelMatrix, 0, greenTardisRotateX, 1.0f, 0.0f, 0.0f);
+    Matrix.rotateM(mModelMatrix, 0, greenTardisRotateY, 0.0f, 1.0f, 0.0f);
     drawTardis();
 
     // Draw a point to indicate the light.
@@ -317,8 +396,8 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     drawLight();
   }
 
-  private void startDrawingCubes() {
-    // Set program handles for cube drawing.
+  private void setupDrawingHandles() {
+    // Set program handles for drawing.
     mMVPMatrixHandle = GLES20.glGetUniformLocation(mProgramHandle, "u_MVPMatrix");
     mMVMatrixHandle = GLES20.glGetUniformLocation(mProgramHandle, "u_MVMatrix");
     mLightPosHandle = GLES20.glGetUniformLocation(mProgramHandle, "u_LightPos");
@@ -355,8 +434,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
   /**
    * Draws a cube.
    */
-  private void drawCube()
-  {
+  private void drawCube() {
     // Pass in the position information
     mCubePositions.position(0);
     GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize, GLES20.GL_FLOAT, false,
@@ -403,11 +481,10 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     GLES20.glUniform3f(mLightPosHandle, mLightPosInEyeSpace[0], mLightPosInEyeSpace[1], mLightPosInEyeSpace[2]);
 
     // Draw the cube.
-    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 36);
+    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6 * 6);
   }
 
-  private void drawTardis()
-  {
+  private void drawTardis() {
     // Pass in the position information
     mTardisPositions.position(0);
     GLES20.glVertexAttribPointer(mPositionHandle, mPositionDataSize, GLES20.GL_FLOAT, false,
@@ -460,8 +537,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
   /**
    * Draws a point representing the position of the light.
    */
-  private void drawLight()
-  {
+  private void drawLight() {
     final int pointMVPMatrixHandle = GLES20.glGetUniformLocation(mPointProgramHandle, "u_MVPMatrix");
     final int pointPositionHandle = GLES20.glGetAttribLocation(mPointProgramHandle, "a_Position");
 
@@ -495,51 +571,51 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
             // usually represent the backside of an object and aren't visible anyways.
 
             // Front face
-            -cx,  cy,  cz,
-            -cx, -cy,  cz,
-            cx,  cy,  cz,
-            -cx, -cy,  cz,
-            cx, -cy,  cz,
-            cx,  cy,  cz,
+            -cx, cy, cz,
+            -cx, -cy, cz,
+            cx, cy, cz,
+            -cx, -cy, cz,
+            cx, -cy, cz,
+            cx, cy, cz,
 
             // Right face
-            cx,  cy,  cz,
-            cx, -cy,  cz,
-            cx,  cy, -cz,
-            cx, -cy,  cz,
+            cx, cy, cz,
+            cx, -cy, cz,
+            cx, cy, -cz,
+            cx, -cy, cz,
             cx, -cy, -cz,
-            cx,  cy, -cz,
+            cx, cy, -cz,
 
             // Back face
-            cx,  cy, -cz,
+            cx, cy, -cz,
             cx, -cy, -cz,
-            -cx,  cy, -cz,
+            -cx, cy, -cz,
             cx, -cy, -cz,
             -cx, -cy, -cz,
-            -cx,  cy, -cz,
+            -cx, cy, -cz,
 
             // Left face
-            -cx,  cy, -cz,
+            -cx, cy, -cz,
             -cx, -cy, -cz,
-            -cx,  cy,  cz,
+            -cx, cy, cz,
             -cx, -cy, -cz,
-            -cx, -cy,  cz,
-            -cx,  cy,  cz,
+            -cx, -cy, cz,
+            -cx, cy, cz,
 
             // Top face
-            -cx,  cy, -cz,
-            -cx,  cy,  cz,
-            cx,  cy, -cz,
-            -cx,  cy,  cz,
-            cx,  cy,  cz,
-            cx,  cy, -cz,
+            -cx, cy, -cz,
+            -cx, cy, cz,
+            cx, cy, -cz,
+            -cx, cy, cz,
+            cx, cy, cz,
+            cx, cy, -cz,
 
             // Bottom face
             cx, -cy, -cz,
-            cx, -cy,  cz,
+            cx, -cy, cz,
             -cx, -cy, -cz,
-            cx, -cy,  cz,
-            -cx, -cy,  cz,
+            cx, -cy, cz,
+            -cx, -cy, cz,
             -cx, -cy, -cz,
         };
 
@@ -549,7 +625,7 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
   private float[] getCubeColorData() {
 
     // make all the sides white
-    final float[] cubeColorData = new float[6*6*4];
+    final float[] cubeColorData = new float[6 * 6 * 4];
     Arrays.fill(cubeColorData, 1.0f);
 
     return cubeColorData;
@@ -695,51 +771,51 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
             // usually represent the backside of an object and aren't visible anyways.
 
             // Front face
-            -cx,  cy,  cz,
-            -cx, -cy,  cz,
-            cx,  cy,  cz,
-            -cx, -cy,  cz,
-            cx, -cy,  cz,
-            cx,  cy,  cz,
+            -cx, cy, cz,
+            -cx, -cy, cz,
+            cx, cy, cz,
+            -cx, -cy, cz,
+            cx, -cy, cz,
+            cx, cy, cz,
 
             // Right face
-            cx,  cy,  cz,
-            cx, -cy,  cz,
-            cx,  cy, -cz,
-            cx, -cy,  cz,
+            cx, cy, cz,
+            cx, -cy, cz,
+            cx, cy, -cz,
+            cx, -cy, cz,
             cx, -cy, -cz,
-            cx,  cy, -cz,
+            cx, cy, -cz,
 
             // Back face
-            cx,  cy, -cz,
+            cx, cy, -cz,
             cx, -cy, -cz,
-            -cx,  cy, -cz,
+            -cx, cy, -cz,
             cx, -cy, -cz,
             -cx, -cy, -cz,
-            -cx,  cy, -cz,
+            -cx, cy, -cz,
 
             // Left face
-            -cx,  cy, -cz,
+            -cx, cy, -cz,
             -cx, -cy, -cz,
-            -cx,  cy,  cz,
+            -cx, cy, cz,
             -cx, -cy, -cz,
-            -cx, -cy,  cz,
-            -cx,  cy,  cz,
+            -cx, -cy, cz,
+            -cx, cy, cz,
 
             // Top face
-            -cx,  cy, -cz,
-            -cx,  cy,  cz,
-            cx,  cy, -cz,
-            -cx,  cy,  cz,
-            cx,  cy,  cz,
-            cx,  cy, -cz,
+            -cx, cy, -cz,
+            -cx, cy, cz,
+            cx, cy, -cz,
+            -cx, cy, cz,
+            cx, cy, cz,
+            cx, cy, -cz,
 
             // Bottom face
             cx, -cy, -cz,
-            cx, -cy,  cz,
+            cx, -cy, cz,
             -cx, -cy, -cz,
-            cx, -cy,  cz,
-            -cx, -cy,  cz,
+            cx, -cy, cz,
+            -cx, -cy, cz,
             -cx, -cy, -cz,
         };
 
@@ -748,8 +824,8 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
 
   private float[] getTardisTextureCoordinateData() {
 
-    float tx = 1.0f; //texture density
-    float ty = 1.0f;
+    float tx = 0.5f; //texture density
+    float ty = 0.5f;
     float tz = 0.0f; //zero texture thing, because it looks nice
 
     // S, T (or X, Y)
@@ -760,52 +836,52 @@ public class GraphicsRenderer implements GLSurfaceView.Renderer
     final float[] cubeTextureCoordinateData =
         {
             // Front face
-            tz, tz,
-            tz, ty,
-            tx, tz,
-            tz, ty,
-            tx, ty,
-            tx, tz,
+            0.0f, 0.5f,
+            0.0f, 1.0f,
+            0.5f, 0.5f,
+            0.0f, 1.0f,
+            0.5f, 1.0f,
+            0.5f, 0.5f,
 
             // Right face
-            tz, tz,
-            tz, ty,
-            tx, tz,
-            tz, ty,
-            tx, ty,
-            tx, tz,
+            0.5f, 0.5f,
+            0.5f, 1.0f,
+            1.0f, 0.5f,
+            0.5f, 1.0f,
+            1.0f, 1.0f,
+            1.0f, 0.5f,
 
             // Back face
-            tz, tz,
-            tz, ty,
-            tx, tz,
-            tz, ty,
-            tx, ty,
-            tx, tz,
+            0.5f, 0.5f,
+            0.5f, 1.0f,
+            1.0f, 0.5f,
+            0.5f, 1.0f,
+            1.0f, 1.0f,
+            1.0f, 0.5f,
 
             // Left face
-            tz, tz,
-            tz, ty,
-            tx, tz,
-            tz, ty,
-            tx, ty,
-            tx, tz,
+            0.5f, 0.5f,
+            0.5f, 1.0f,
+            1.0f, 0.5f,
+            0.5f, 1.0f,
+            1.0f, 1.0f,
+            1.0f, 0.5f,
 
             // Top face
-            tz, tz,
-            tz, ty,
-            tx, tz,
-            tz, ty,
-            tx, ty,
-            tx, tz,
+            0.5f, 0.0f,
+            0.5f, 0.5f,
+            1.0f, 0.0f,
+            0.5f, 0.5f,
+            1.0f, 0.5f,
+            1.0f, 0.0f,
 
             // Bottom face
-            tz, tz,
-            tz, ty,
-            tx, tz,
-            tz, ty,
-            tx, ty,
-            tx, tz
+            0.0f, 0.0f,
+            0.0f, 0.5f,
+            0.5f, 0.0f,
+            0.0f, 0.5f,
+            0.5f, 0.5f,
+            0.5f, 0.0f
         };
 
     return cubeTextureCoordinateData;
