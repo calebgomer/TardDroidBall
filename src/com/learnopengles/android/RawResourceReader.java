@@ -1,4 +1,4 @@
-package com.erik.and.caleb.tarddroidball.learnopengles;
+package com.learnopengles.android;
 
 import java.io.BufferedReader;
 import java.io.IOException;
