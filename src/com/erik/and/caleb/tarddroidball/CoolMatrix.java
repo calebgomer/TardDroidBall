@@ -1,17 +1,7 @@
 package com.erik.and.caleb.tarddroidball;
 
-import android.util.Log;
-
-/**
- * Created with IntelliJ IDEA.
- * User: calebgomer
- * Date: 3/27/13
- * Time: 3:16 PM
- * To change this template use File | Settings | File Templates.
- */
 public class CoolMatrix {
 
-  public static final String TAG = "CoolMatrix";
   private float[] matrix;
 
   public CoolMatrix(float[] matrix) throws ThisIsNotAMatrixException {
@@ -23,12 +13,6 @@ public class CoolMatrix {
   }
 
   public class ThisIsNotAMatrixException extends Exception {
-
-    @Override
-    public void printStackTrace() {
-      Log.d(TAG, TAG + " Exception: This is not a cool matrix!");
-      super.printStackTrace();
-    }
   }
 
   public float[] getMatrix() {

@@ -1,5 +1,16 @@
 package com.erik.and.caleb.tarddroidball;
 
+import android.content.Context;
+import android.opengl.GLES20;
+import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
+import android.os.SystemClock;
+import com.learnopengles.android.RawResourceReader;
+import com.learnopengles.android.ShaderHelper;
+import com.learnopengles.android.TextureHelper;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -8,24 +19,10 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
-
-import android.content.Context;
-import android.opengl.GLES20;
-import android.opengl.GLSurfaceView;
-import android.opengl.Matrix;
-import android.os.SystemClock;
-import com.erik.and.caleb.tarddroidball.learnopengles.RawResourceReader;
-import com.erik.and.caleb.tarddroidball.learnopengles.ShaderHelper;
-import com.erik.and.caleb.tarddroidball.learnopengles.TextureHelper;
-
 public class GraphicsRenderer implements GLSurfaceView.Renderer {
 
   public volatile CopyOnWriteArrayList<Finger> mFingers;
   private ArrayList<CoolMatrix> mObjectMatrices;
-
-  private static final String TAG = "GraphicsRenderer";
 
   private final Context mActivityContext;
 
